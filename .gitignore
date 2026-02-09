@@ -1,0 +1,25 @@
+# --- Go Binaries and Build Artifacts ---
+/eghostbuster         # The final compiled Go binary
+bin/                   # If you use a bin folder for builds
+dist/                  # If you use GoReleaser or build distributions
+
+# --- eBPF / bpf2go Artifacts ---
+
+*.o
+!pkg/bpf/*.o           # OPTIONAL: See note below if you want portable builds
+
+# --- Kernel / Headers ---
+# vmlinux.h is 5MB+ and kernel-specific. DO NOT commit it.
+vmlinux.h
+bpf/vmlinux.h
+bpf/include/vmlinux.h
+
+
+# --- IDE and OS specific ---
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# --- Go Dependencies ---
+vendor/                # Only if you don't use Go modules (not recommended)
