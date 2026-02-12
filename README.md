@@ -1,13 +1,14 @@
-<div align="center">                                                             
-    <picture>                                                                  
-      <source media="(prefers-color-scheme: dark)" srcset="docs/img/eghostbuster-dark.png">                                                                   
-      <source media="(prefers-color-scheme: light)" srcset="docs/img/eghostbuster-dark.png">
-      <img alt="eghostbuster" src="eghostbuster-light.png" width="400">
+<div align="center">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/img/eghostbuster-dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="docs/img/eghostbuster-light.png">
+      <img alt="eghostbuster" src="docs/img/eghostbuster-light.png" width="400">
     </picture>
+    <br><br>
+    <a href="/LICENSE">
+        <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License">
+    </a>
 </div>
-
-
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](/LICENSE)
 
 An eBPF-based framework for detecting and cleaning up orphaned kernel resources left behind by dead processes.                                              
 
