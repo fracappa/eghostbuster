@@ -13,12 +13,11 @@ import (
 	"github.com/cilium/ebpf"
 )
 
-type EGhostBusterConnectionInfo struct {
+type EGhostBusterCloseWaitInfo struct {
 	_         structs.HostLayout
+	EnteredAt uint64
 	Pid       uint32
-	_         [4]byte
-	StartTime uint64
-	Comm      [16]uint8
+	Pad       uint32
 }
 
 type EGhostBusterConnectionKey struct {
@@ -73,18 +72,17 @@ type EGhostBusterSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type EGhostBusterProgramSpecs struct {
-	BpfReaper      *ebpf.ProgramSpec `ebpf:"bpf_reaper"`
-	HandleSetState *ebpf.ProgramSpec `ebpf:"handle_set_state"`
-	TcpV4Connect   *ebpf.ProgramSpec `ebpf:"tcp_v4_connect"`
+	HandleSetState    *ebpf.ProgramSpec `ebpf:"handle_set_state"`
+	InetCskAcceptExit *ebpf.ProgramSpec `ebpf:"inet_csk_accept_exit"`
+	TcpV4Connect      *ebpf.ProgramSpec `ebpf:"tcp_v4_connect"`
 }
 
 // EGhostBusterMapSpecs contains maps before they are loaded into the kernel.
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type EGhostBusterMapSpecs struct {
-	ConnTracker   *ebpf.MapSpec `ebpf:"conn_tracker"`
-	SkInfoStorage *ebpf.MapSpec `ebpf:"sk_info_storage"`
-	ZombieEvents  *ebpf.MapSpec `ebpf:"zombie_events"`
+	CloseWaitTracker *ebpf.MapSpec `ebpf:"close_wait_tracker"`
+	SkInfoStorage    *ebpf.MapSpec `ebpf:"sk_info_storage"`
 }
 
 // EGhostBusterVariableSpecs contains global variables before they are loaded into the kernel.
@@ -113,16 +111,14 @@ func (o *EGhostBusterObjects) Close() error {
 //
 // It can be passed to LoadEGhostBusterObjects or ebpf.CollectionSpec.LoadAndAssign.
 type EGhostBusterMaps struct {
-	ConnTracker   *ebpf.Map `ebpf:"conn_tracker"`
-	SkInfoStorage *ebpf.Map `ebpf:"sk_info_storage"`
-	ZombieEvents  *ebpf.Map `ebpf:"zombie_events"`
+	CloseWaitTracker *ebpf.Map `ebpf:"close_wait_tracker"`
+	SkInfoStorage    *ebpf.Map `ebpf:"sk_info_storage"`
 }
 
 func (m *EGhostBusterMaps) Close() error {
 	return _EGhostBusterClose(
-		m.ConnTracker,
+		m.CloseWaitTracker,
 		m.SkInfoStorage,
-		m.ZombieEvents,
 	)
 }
 
@@ -136,15 +132,15 @@ type EGhostBusterVariables struct {
 //
 // It can be passed to LoadEGhostBusterObjects or ebpf.CollectionSpec.LoadAndAssign.
 type EGhostBusterPrograms struct {
-	BpfReaper      *ebpf.Program `ebpf:"bpf_reaper"`
-	HandleSetState *ebpf.Program `ebpf:"handle_set_state"`
-	TcpV4Connect   *ebpf.Program `ebpf:"tcp_v4_connect"`
+	HandleSetState    *ebpf.Program `ebpf:"handle_set_state"`
+	InetCskAcceptExit *ebpf.Program `ebpf:"inet_csk_accept_exit"`
+	TcpV4Connect      *ebpf.Program `ebpf:"tcp_v4_connect"`
 }
 
 func (p *EGhostBusterPrograms) Close() error {
 	return _EGhostBusterClose(
-		p.BpfReaper,
 		p.HandleSetState,
+		p.InetCskAcceptExit,
 		p.TcpV4Connect,
 	)
 }

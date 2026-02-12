@@ -2,115 +2,101 @@ package operator
 
 import (
 	"context"
-	"encoding/binary"
-	"errors"
 	"fmt"
 	"log"
-	"net"
+	"os/exec"
+	"time"
 
 	"github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/ringbuf"
 	"github.com/eghostbuster/eghostbuster/pkg/bpf"
-	"github.com/eghostbuster/eghostbuster/pkg/consts"
-	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
-func StartMonitor(ctx context.Context, objs *bpf.EGhostBusterObjects) error {
-	rd, err := ringbuf.NewReader(objs.ZombieEvents)
-	if err != nil {
-		return fmt.Errorf("opening ringbuf reader: %w", err)
-	}
-	defer rd.Close()
+type Config struct {
+	ScanInterval     time.Duration // How often to check the map
+	CloseWaitTimeout time.Duration // How long before considering stale
+}
 
-	// Close reader when context is cancelled
-	go func() {
-		<-ctx.Done()
-		rd.Close()
-	}()
+func DefaultConfig() Config {
+	return Config{
+		ScanInterval:     30 * time.Second,
+		CloseWaitTimeout: 60 * time.Second,
+	}
+}
+
+// StartMonitor periodically scans close_wait_tracker for stale sockets
+func StartMonitor(ctx context.Context, objs *bpf.EGhostBusterObjects, cfg Config) error {
+	log.Printf("CLOSE_WAIT monitor started (interval=%v, timeout=%v)",
+		cfg.ScanInterval, cfg.CloseWaitTimeout)
+
+	ticker := time.NewTicker(cfg.ScanInterval)
+	defer ticker.Stop()
 
 	for {
-		record, err := rd.Read()
-		if err != nil {
-			if errors.Is(err, ringbuf.ErrClosed) {
-				return nil
-			}
-			log.Printf("ringbuf read error: %v", err)
-			continue
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			cleanupStaleCloseWait(objs.CloseWaitTracker, cfg.CloseWaitTimeout)
 		}
-
-		// Parse the connection_info struct from BPF
-		event := parseConnectionInfo(record.RawSample)
-
-		log.Printf("Process exited: PID=%d, Comm=%s", event.Pid, event.Comm)
-
-		// Cleanup all sockets belonging to this dead process
-		Cleanup(objs.ConnTracker, event.Pid, event.StartTime)
 	}
 }
 
-// Cleanup find and kills sockets belonging to the dead PID
-func Cleanup(connMap *ebpf.Map, deadPID uint32, deadStartTime uint64) {
+// cleanupStaleCloseWait periodically scans the tracker map and delete the sockets that exceed the timeout
+func cleanupStaleCloseWait(tracker *ebpf.Map, timeout time.Duration) {
 	var key bpf.EGhostBusterConnectionKey
-	var info bpf.EGhostBusterConnectionInfo
+	var info bpf.EGhostBusterCloseWaitInfo
 
-	// 1. Iterate through the BPF Map (Go can do this safely)
-	iter := connMap.Iterate()
+	now := getKtimeNs()
+	timeoutNs := uint64(timeout.Nanoseconds())
+	var toDelete []bpf.EGhostBusterConnectionKey
+
+	iter := tracker.Iterate()
 	for iter.Next(&key, &info) {
-		// 2. Match the unique PID + StartTime fingerprint
-		if info.Pid == deadPID && info.StartTime == deadStartTime {
-			log.Printf("Ghost detected! PID: %d, Comm: %s, 5-Tuple: %v",
-				info.Pid, string(info.Comm[:]), key)
+		if now-info.EnteredAt > timeoutNs {
+			srcIP := formatIP(key.SrcIp)
+			dstIP := formatIP(key.DstIp)
+			srcPort := key.SrcPort
+			dstPort := key.DstPort
 
-			// 3. Trigger the Kernel Cleanup
-			err := canceleSocket(key)
-			if err != nil {
-				log.Printf("Failed to kill ghost: %v", err)
-				continue
-			}
+			log.Printf("Stale CLOSE_WAIT: %s:%d -> %s:%d (age: %v)",
+				srcIP, srcPort, dstIP, dstPort, time.Duration(now-info.EnteredAt))
 
-			// 4. Remove from our tracker
-			if err := connMap.Delete(key); err != nil {
-				log.Printf("Failed to delete map entry: %v", err)
+			if err := killSocket(srcIP, srcPort, dstIP, dstPort); err != nil {
+				log.Printf("Failed to kill: %v", err)
+			} else {
+				toDelete = append(toDelete, key)
 			}
 		}
 	}
+
+	for _, k := range toDelete {
+		tracker.Delete(k)
+	}
 }
 
-func canceleSocket(key bpf.EGhostBusterConnectionKey) error {
-	// Convert uint32 IPs to net.IP (little-endian from BPF on x86)
-	srcIP := net.IPv4(
-		byte(key.SrcIp), byte(key.SrcIp>>8),
-		byte(key.SrcIp>>16), byte(key.SrcIp>>24),
-	)
-	dstIP := net.IPv4(
-		byte(key.DstIp), byte(key.DstIp>>8),
-		byte(key.DstIp>>16), byte(key.DstIp>>24),
-	)
+func killSocket(srcIP string, srcPort uint16, dstIP string, dstPort uint16) error {
+	// Use ss --kill to destroy the socket
+	// ss handles namespaces automatically when run with proper privileges
+	cmd := exec.Command("ss", "--kill", "state", "close-wait",
+		"src", fmt.Sprintf("%s:%d", srcIP, srcPort),
+		"dst", fmt.Sprintf("%s:%d", dstIP, dstPort))
 
-	// Ports: byte-swap to get integer value from big-endian
-	srcPort := int(key.SrcPort>>8 | (key.SrcPort&0xFF)<<8)
-	dstPort := int(key.DstPort>>8 | (key.DstPort&0xFF)<<8)
-
-	if key.Proto == consts.TCP_PROTOCOL {
-		local := &net.TCPAddr{IP: srcIP, Port: srcPort}
-		remote := &net.TCPAddr{IP: dstIP, Port: dstPort}
-		return netlink.SocketDestroy(local, remote)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("ss --kill failed: %v, output: %s", err, output)
 	}
-
-	if key.Proto == consts.UDP_PROTOCOL {
-		local := &net.UDPAddr{IP: srcIP, Port: srcPort}
-		remote := &net.UDPAddr{IP: dstIP, Port: dstPort}
-		return netlink.SocketDestroy(local, remote)
-	}
-
-	return fmt.Errorf("unsupported protocol: %d", key.Proto)
+	log.Printf("Successfully killed socket %s:%d -> %s:%d", srcIP, srcPort, dstIP, dstPort)
+	return nil
 }
 
-func parseConnectionInfo(data []byte) bpf.EGhostBusterConnectionInfo {
-	return bpf.EGhostBusterConnectionInfo{
-		Pid: binary.LittleEndian.Uint32(data[0:4]),
-		// 4 bytes padding
-		StartTime: binary.LittleEndian.Uint64(data[8:16]),
-		Comm:      *(*[16]uint8)(data[16:32]),
-	}
+func formatIP(ip uint32) string {
+	return fmt.Sprintf("%d.%d.%d.%d",
+		byte(ip), byte(ip>>8), byte(ip>>16), byte(ip>>24))
+}
+
+func getKtimeNs() uint64 {
+	var ts unix.Timespec
+	unix.ClockGettime(unix.CLOCK_MONOTONIC, &ts)
+	return uint64(ts.Sec)*1e9 + uint64(ts.Nsec)
 }
