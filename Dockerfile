@@ -10,7 +10,7 @@ COPY . .
 RUN make build
 
 FROM alpine:3.19
-RUN apk add --no-cache libbpf
+RUN apk add --no-cache libbpf iproute2
 
 COPY --from=builder /app/eghostbuster /usr/local/bin/
 

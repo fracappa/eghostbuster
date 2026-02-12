@@ -11,10 +11,10 @@ struct connection_key {
     __u8 proto;
 };
 
-struct connection_info {
-    __be32 pid;           // The PID that opened the socket
-    __be64 start_time;    // Kernel timestamp (ktime_get_ns)
-    __u8 comm[16];       // Process name (e.g., "nginx")
-};
+  struct close_wait_info {
+      __u64 entered_at;
+      __u32 pid;
+      __u32 _pad;
+  };
 
 #endif /* __TYPES_H */

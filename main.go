@@ -24,10 +24,9 @@ func main() {
 	if err := bpf.LoadEGhostBusterObjects(&objs, nil); err != nil {
 		log.Fatalf("failed to load bpf objects: %v", err)
 	}
-
 	defer objs.Close()
 
-	// attach fentry
+	// attach fentry/tcp_v4_connect (client connections)
 	fentryLink, err := link.AttachTracing(link.TracingOptions{
 		Program: objs.TcpV4Connect,
 	})
@@ -36,31 +35,34 @@ func main() {
 	}
 	defer fentryLink.Close()
 
-	// tp_btf attaches via link.AttachTracing, not link.Tracepoint
-	tpSockLink, err := link.AttachTracing(link.TracingOptions{
+	// attach fexit/inet_csk_accept (server connections)
+	fexistLink, err := link.AttachTracing(link.TracingOptions{
+		Program: objs.InetCskAcceptExit,
+	})
+	if err != nil {
+		log.Fatalf("failed to attach fexit/inet_csk_accept: %v", err)
+	}
+	defer fexistLink.Close()
+
+	// attach tp_btf/inet_sock_set_state (state changes)
+	tpLink, err := link.AttachTracing(link.TracingOptions{
 		Program: objs.HandleSetState,
 	})
 	if err != nil {
-		log.Fatalf("failed to attach tp_btf/inet_sock_set_state: %v", err)
+		log.Fatalf("failed to attach inet_sock_set_state: %v", err)
 	}
-	defer tpSockLink.Close()
-
-	// Attattachach tp/sched/sched_process_exit
-	tpSchedLink, err := link.Tracepoint("sched", "sched_process_exit", objs.BpfReaper, nil)
-	if err != nil {
-		log.Fatalf("failed to attach tp/sched/sched_process_exit: %v", err)
-	}
-	defer tpSchedLink.Close()
+	defer tpLink.Close()
 
 	log.Println("eghostbuster started. Waiting for zombie connections...")
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
+	cfg := operator.DefaultConfig()
 	// start ring buffer consumer
-	if err := operator.StartMonitor(ctx, &objs); err != nil {
+	if err := operator.StartMonitor(ctx, &objs, cfg); err != nil {
 		if !errors.Is(err, context.Canceled) {
-			log.Fatalf("failed to kick off reaper: %v", err)
+			log.Fatalf("monitor error: %v", err)
 		}
 	}
 
