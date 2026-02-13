@@ -10,37 +10,36 @@
     </a>
 </div>
 
-An eBPF-based framework for detecting and cleaning up orphaned kernel resources left behind by dead processes.                                              
+An eBPF-based tool for detecting and cleaning up stale kernel resources
 
 ## Problem                                                                                                                                                  
-                
-When processes exit unexpectedly, they can leave behind various kernel resources that linger until timeout mechanisms or manual intervention clean them up:
+Kernel resources can become "stuck" or stale due to various conditions:
 
-- TCP/UDP sockets
-- File locks
-- Shared memory segments
-- Semaphores
-- Other kernel structures
+- Processes exiting unexpectedly without proper cleanup
+- Applications that leak resources (don't close sockets, release locks, etc.)
+- Network issues leaving connections in lingering states
+- Bugs in resource lifecycle management
 
-These "ghost" resources consume memory, block other processes, and can cause subtle bugs in production systems.
+These "ghost" resources consume memory, block other processes, hold ports, and can cause subtle bugs in production systems. They often linger until timeout
+mechanisms or manual intervention clean them up.
 
 ## Solution
 
 eghostbuster uses eBPF to:
 
-1. **Track resource ownership** — Hooks into kernel functions to monitor resource allocation and associate them with processes
-2. **Detect process exits** — Listens to `sched_process_exit` to detect when processes die
-3. **Clean up orphaned resources** — Immediately releases resources belonging to dead processes
+1. **Monitor resource state**: hooks into kernel functions to observe resource state transitions in real-time
+2. **Detect stale resources**: identifies resources that have been in problematic states beyond configurable thresholds
+3. **Clean up automatically**: releases stale resources before they cause issues
+
 
 ## Current Features
 
-- **TCP connection cleanup** — Detects and destroys ghost TCP sockets via netlink `SOCK_DESTROY`
+- **TCP CLOSE_WAIT cleanup**: detects TCP sockets stuck in `CLOSE_WAIT` state and destroys them after a configurable timeout
 
 ## Planned Features
 
 - File lock cleanup
 - Shared memory / IPC cleanup
-- Custom resource handlers via plugin system
 
 ## Requirements
 
@@ -50,6 +49,7 @@ eghostbuster uses eBPF to:
 - Go 1.21+
 - Clang/LLVM
 - bpftool
+- iproute2 (`ss` command, typically pre-installed)
 
 ## Building
 
