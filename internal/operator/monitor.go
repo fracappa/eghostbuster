@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"time"
 
@@ -18,9 +19,23 @@ type Config struct {
 }
 
 func DefaultConfig() Config {
+	timeout := 60 * time.Second
+	if env := os.Getenv("CLOSE_WAIT_TIMEOUT"); env != "" {
+		if d, err := time.ParseDuration(env); err == nil {
+			timeout = d
+		}
+	}
+
+	interval := 30 * time.Second
+	if env := os.Getenv("SCAN_INTERVAL"); env != "" {
+		if d, err := time.ParseDuration(env); err == nil {
+			interval = d
+		}
+	}
+
 	return Config{
-		ScanInterval:     30 * time.Second,
-		CloseWaitTimeout: 60 * time.Second,
+		ScanInterval:     interval,
+		CloseWaitTimeout: timeout,
 	}
 }
 
