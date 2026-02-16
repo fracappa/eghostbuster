@@ -78,7 +78,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	cfg := operator.DefaultConfig()
+	cfg := operator.ParseConfig()
 
 	// if CLI flags are set, override the defaults
 	if *timeout > 0 {

@@ -18,24 +18,29 @@ type Config struct {
 	CloseWaitTimeout time.Duration // How long before considering stale
 }
 
-func DefaultConfig() Config {
-	timeout := 60 * time.Second
+func ParseConfig() Config {
+	cfg := defaultConfig()
+
+	// check the env var and if set change cfg's fields.
 	if env := os.Getenv("CLOSE_WAIT_TIMEOUT"); env != "" {
 		if d, err := time.ParseDuration(env); err == nil {
-			timeout = d
+			cfg.CloseWaitTimeout = d
 		}
 	}
 
-	interval := 30 * time.Second
 	if env := os.Getenv("SCAN_INTERVAL"); env != "" {
 		if d, err := time.ParseDuration(env); err == nil {
-			interval = d
+			cfg.ScanInterval = d
 		}
 	}
+	
+	return cfg
+}
 
+func defaultConfig() Config {
 	return Config{
-		ScanInterval:     interval,
-		CloseWaitTimeout: timeout,
+		ScanInterval:     30 * time.Second,
+		CloseWaitTimeout: 60 * time.Second,
 	}
 }
 
