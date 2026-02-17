@@ -21,19 +21,22 @@ type Config struct {
 func ParseConfig() Config {
 	cfg := defaultConfig()
 
-	// check the env var and if set change cfg's fields.
-	if env := os.Getenv("CLOSE_WAIT_TIMEOUT"); env != "" {
-		if d, err := time.ParseDuration(env); err == nil {
-			cfg.CloseWaitTimeout = d
+	envOverrides := map[string]*time.Duration{
+		"CLOSE_WAIT_TIMEOUT": &cfg.CloseWaitTimeout,
+		"SCAN_INTERVAL":      &cfg.ScanInterval,
+	}
+
+	for env, field := range envOverrides {
+		if val := os.Getenv(env); val != "" {
+			d, err := time.ParseDuration(val)
+			if err != nil {
+				log.Printf("error parsing %s env var: %v", env, err)
+			} else {
+				*field = d
+			}
 		}
 	}
 
-	if env := os.Getenv("SCAN_INTERVAL"); env != "" {
-		if d, err := time.ParseDuration(env); err == nil {
-			cfg.ScanInterval = d
-		}
-	}
-	
 	return cfg
 }
 
