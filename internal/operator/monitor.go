@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"time"
 
@@ -17,7 +18,29 @@ type Config struct {
 	CloseWaitTimeout time.Duration // How long before considering stale
 }
 
-func DefaultConfig() Config {
+func ParseConfig() Config {
+	cfg := defaultConfig()
+
+	envOverrides := map[string]*time.Duration{
+		"CLOSE_WAIT_TIMEOUT": &cfg.CloseWaitTimeout,
+		"SCAN_INTERVAL":      &cfg.ScanInterval,
+	}
+
+	for env, field := range envOverrides {
+		if val := os.Getenv(env); val != "" {
+			d, err := time.ParseDuration(val)
+			if err != nil {
+				log.Printf("error parsing %s env var: %v", env, err)
+			} else {
+				*field = d
+			}
+		}
+	}
+
+	return cfg
+}
+
+func defaultConfig() Config {
 	return Config{
 		ScanInterval:     30 * time.Second,
 		CloseWaitTimeout: 60 * time.Second,
