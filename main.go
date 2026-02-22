@@ -39,6 +39,16 @@ func main() {
 		log.Fatalf("failed to remove rlimit: %v", err)
 	}
 
+	cfg := operator.ParseConfig()
+
+	// if CLI flags are set, override the defaults
+	if *timeout > 0 {
+		cfg.CloseWaitTimeout = *timeout
+	}
+	if *interval > 0 {
+		cfg.ScanInterval = *interval
+	}
+
 	// load BPF maps and programs
 	var objs bpf.EGhostBusterObjects
 	if err := bpf.LoadEGhostBusterObjects(&objs, nil); err != nil {
@@ -46,23 +56,23 @@ func main() {
 	}
 	defer objs.Close()
 
-	// attach fentry/tcp_v4_connect (client connections)
-	fentryLink, err := link.AttachTracing(link.TracingOptions{
-		Program: objs.TcpV4Connect,
-	})
-	if err != nil {
-		log.Fatalf("failed to attach fentry/tcp_v4_connect: %v", err)
-	}
-	defer fentryLink.Close()
+	// // attach fentry/tcp_v4_connect (client connections)
+	// fentryLink, err := link.AttachTracing(link.TracingOptions{
+	// 	Program: objs.TcpV4Connect,
+	// })
+	// if err != nil {
+	// 	log.Fatalf("failed to attach fentry/tcp_v4_connect: %v", err)
+	// }
+	// defer fentryLink.Close()
 
-	// attach fexit/inet_csk_accept (server connections)
-	fexistLink, err := link.AttachTracing(link.TracingOptions{
-		Program: objs.InetCskAcceptExit,
-	})
-	if err != nil {
-		log.Fatalf("failed to attach fexit/inet_csk_accept: %v", err)
-	}
-	defer fexistLink.Close()
+	// // attach fexit/inet_csk_accept (server connections)
+	// fexistLink, err := link.AttachTracing(link.TracingOptions{
+	// 	Program: objs.InetCskAcceptExit,
+	// })
+	// if err != nil {
+	// 	log.Fatalf("failed to attach fexit/inet_csk_accept: %v", err)
+	// }
+	// defer fexistLink.Close()
 
 	// attach tp_btf/inet_sock_set_state (state changes)
 	tpLink, err := link.AttachTracing(link.TracingOptions{
@@ -77,16 +87,6 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
-
-	cfg := operator.ParseConfig()
-
-	// if CLI flags are set, override the defaults
-	if *timeout > 0 {
-		cfg.CloseWaitTimeout = *timeout
-	}
-	if *interval > 0 {
-		cfg.ScanInterval = *interval
-	}
 
 	// start ring buffer consumer
 	if err := operator.StartMonitor(ctx, &objs, cfg); err != nil {
