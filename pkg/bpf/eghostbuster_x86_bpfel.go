@@ -16,8 +16,7 @@ import (
 type EGhostBusterCloseWaitInfo struct {
 	_         structs.HostLayout
 	EnteredAt uint64
-	Pid       uint32
-	Pad       uint32
+	NetnsIno  uint64
 }
 
 type EGhostBusterConnectionKey struct {
@@ -72,9 +71,7 @@ type EGhostBusterSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type EGhostBusterProgramSpecs struct {
-	HandleSetState    *ebpf.ProgramSpec `ebpf:"handle_set_state"`
-	InetCskAcceptExit *ebpf.ProgramSpec `ebpf:"inet_csk_accept_exit"`
-	TcpV4Connect      *ebpf.ProgramSpec `ebpf:"tcp_v4_connect"`
+	HandleSetState *ebpf.ProgramSpec `ebpf:"handle_set_state"`
 }
 
 // EGhostBusterMapSpecs contains maps before they are loaded into the kernel.
@@ -82,7 +79,6 @@ type EGhostBusterProgramSpecs struct {
 // It can be passed ebpf.CollectionSpec.Assign.
 type EGhostBusterMapSpecs struct {
 	CloseWaitTracker *ebpf.MapSpec `ebpf:"close_wait_tracker"`
-	SkInfoStorage    *ebpf.MapSpec `ebpf:"sk_info_storage"`
 }
 
 // EGhostBusterVariableSpecs contains global variables before they are loaded into the kernel.
@@ -112,13 +108,11 @@ func (o *EGhostBusterObjects) Close() error {
 // It can be passed to LoadEGhostBusterObjects or ebpf.CollectionSpec.LoadAndAssign.
 type EGhostBusterMaps struct {
 	CloseWaitTracker *ebpf.Map `ebpf:"close_wait_tracker"`
-	SkInfoStorage    *ebpf.Map `ebpf:"sk_info_storage"`
 }
 
 func (m *EGhostBusterMaps) Close() error {
 	return _EGhostBusterClose(
 		m.CloseWaitTracker,
-		m.SkInfoStorage,
 	)
 }
 
@@ -132,16 +126,12 @@ type EGhostBusterVariables struct {
 //
 // It can be passed to LoadEGhostBusterObjects or ebpf.CollectionSpec.LoadAndAssign.
 type EGhostBusterPrograms struct {
-	HandleSetState    *ebpf.Program `ebpf:"handle_set_state"`
-	InetCskAcceptExit *ebpf.Program `ebpf:"inet_csk_accept_exit"`
-	TcpV4Connect      *ebpf.Program `ebpf:"tcp_v4_connect"`
+	HandleSetState *ebpf.Program `ebpf:"handle_set_state"`
 }
 
 func (p *EGhostBusterPrograms) Close() error {
 	return _EGhostBusterClose(
 		p.HandleSetState,
-		p.InetCskAcceptExit,
-		p.TcpV4Connect,
 	)
 }
 
