@@ -80,33 +80,33 @@ func cleanupStaleCloseWait(tracker *ebpf.Map, timeout time.Duration) {
 	for iter.Next(&key, &info) {
 		age := nowKtime - info.EnteredAt
 		if age > timeoutNs {
-			srcIP := socket.FormatIP(key.SrcIp)
-			dstIP := socket.FormatIP(key.DstIp)
-			srcPort := socket.Ntohs(key.SrcPort)
-			dstPort := socket.Ntohs(key.DstPort)
-
 			log.Printf("Stale CLOSE_WAIT: %s:%d -> %s:%d (age=%v, netns=%s)",
-				srcIP, srcPort, dstIP, dstPort,
+				socket.FormatIP(key.SrcIp), socket.Ntohs(key.SrcPort),
+				socket.FormatIP(key.DstIp), socket.Ntohs(key.DstPort),
 				time.Duration(age), netns.GetNameByIno(info.NetnsIno))
 
 			err := socket.DestroySocketNetnsIno(
 				info.NetnsIno,
-				srcIP, srcPort,
-				dstIP, dstPort,
+				key.Proto,
+				key.SrcIp, key.SrcPort,
+				key.DstIp, key.DstPort,
 			)
 			if err != nil {
 				// check if namespace exist
 				if strings.Contains(err.Error(), "not found") {
 					// namespace cleanded up
 					log.Printf("Socker already cleaned up (namespace deleted): %s:%d -> %s:%d",
-						srcIP, srcPort, dstIP, dstPort)
+						socket.FormatIP(key.SrcIp), socket.Ntohs(key.SrcPort),
+						socket.FormatIP(key.DstIp), socket.Ntohs(key.DstPort))
 					toDelete = append(toDelete, key)
 				} else {
 					log.Printf("Failed to kill socket: %v", err)
+					toDelete = append(toDelete, key)
 				}
 			} else {
 				log.Printf("Killed socket %s:%d -> %s:%d",
-					srcIP, srcPort, dstIP, dstPort)
+					socket.FormatIP(key.SrcIp), socket.Ntohs(key.SrcPort),
+					socket.FormatIP(key.DstIp), socket.Ntohs(key.DstPort))
 				toDelete = append(toDelete, key)
 			}
 		}
