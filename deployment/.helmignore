@@ -1,0 +1,31 @@
+# Patterns to ignore when building packages.
+# This supports shell glob matching, relative path matching, and
+# negation patterns (starting with !) to suppress any of these rules.
+# Once a negated pattern is matched, it takes precedence over regular
+# patterns below the negation.
+# A double asterisk pattern "**" matches zero or more directories in any
+# path position.
+# For more details, see documentation at
+# https://helm.sh/docs/chart_template_guide/using_helm/#using-the-files-builtin
+
+# Locally generated files
+*.swp
+*.swo
+*~
+.DS_Store
+.git
+.gitignore
+.bzr
+.bzrignore
+.hg
+.hgignore
+.svn
+.svnignore
+*.tgz
+.idea
+*.iml
+.vscode
+
+# Testing
+test/
+tests/

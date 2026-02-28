@@ -23,3 +23,8 @@ bpf/include/vmlinux.h
 
 # --- Go Dependencies ---
 vendor/                # Only if you don't use Go modules (not recommended)
+
+# --- Helm ---
+*.tgz
+*.tgz.asc
+/deployment/charts/
