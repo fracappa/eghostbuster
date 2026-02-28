@@ -14,7 +14,7 @@ A Helm chart for deploying eghostbuster, an eBPF-based tool for detecting and cl
 ### Add the Helm repository
 
 ```bash
-helm repo add eghostbuster https://github.com/fcappa/eghostbuster/releases/download/charts
+helm repo add eghostbuster oci://ghcr.io/fcappa/helm-charts
 helm repo update
 ```
 
