@@ -1,0 +1,54 @@
+replicaCount: 1
+
+image:
+  repository: quay.io/rh-ee-fcappa/eghostbuster
+  pullPolicy: IfNotPresent
+  tag: ""  # Overridden by chart version if empty
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: false
+  runAsUser: 0
+  fsGroup: 0
+
+securityContext:
+  privileged: true
+  capabilities:
+    add:
+      - SYS_ADMIN
+      - NET_ADMIN
+      - BPF
+      - PERFMON
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# eghostbuster configuration
+config:
+  # TCP CLOSE_WAIT socket cleanup timeout (seconds)
+  closeWaitTimeout: 300
+  # Enable verbose logging
+  verbose: false
+  # Network namespace to monitor (empty = all namespaces)
+  netns: ""

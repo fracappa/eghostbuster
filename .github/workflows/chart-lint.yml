@@ -1,0 +1,33 @@
+name: Helm Chart Lint
+
+on:
+  pull_request:
+    paths:
+      - 'deployment/**'
+      - '.github/workflows/chart-lint.yml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      - name: Lint Helm chart
+        run: helm lint deployment/
+
+      - name: Template Helm chart
+        run: helm template eghostbuster deployment/
+
+      - name: Run Helm chart tests
+        run: |
+          helm template eghostbuster deployment/ > /tmp/manifests.yaml
+          helm lint deployment/ --strict
