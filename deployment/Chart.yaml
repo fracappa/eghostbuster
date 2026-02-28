@@ -1,0 +1,18 @@
+apiVersion: v2
+name: eghostbuster
+description: An eBPF-based tool for detecting and cleaning up stale kernel resources
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - ebpf
+  - kernel
+  - monitoring
+  - cleanup
+maintainers:
+  - name: fcappa
+    email: your-email@example.com
+home: https://github.com/fcappa/eghostbuster
+sources:
+  - https://github.com/fcappa/eghostbuster
+license: Apache-2.0
