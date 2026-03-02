@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os/exec"
 
-	"github.com/eghostbuster/eghostbuster/pkg/consts"
-	"github.com/eghostbuster/eghostbuster/pkg/netns"
+	"github.com/fracappa/eghostbuster/pkg/consts"
+	"github.com/fracappa/eghostbuster/pkg/netns"
 )
 
 // Destroy kills a TCP socket in CLOSE_WAIT state using ss

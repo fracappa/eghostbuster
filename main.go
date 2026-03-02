@@ -10,8 +10,8 @@ import (
 
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
-	"github.com/eghostbuster/eghostbuster/internal/operator"
-	"github.com/eghostbuster/eghostbuster/pkg/bpf"
+	"github.com/fracappa/eghostbuster/internal/operator"
+	"github.com/fracappa/eghostbuster/pkg/bpf"
 )
 
 /*

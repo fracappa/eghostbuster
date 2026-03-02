@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/cilium/ebpf"
-	"github.com/eghostbuster/eghostbuster/pkg/bpf"
-	"github.com/eghostbuster/eghostbuster/pkg/netns"
-	"github.com/eghostbuster/eghostbuster/pkg/socket"
+	"github.com/fracappa/eghostbuster/pkg/bpf"
+	"github.com/fracappa/eghostbuster/pkg/netns"
+	"github.com/fracappa/eghostbuster/pkg/socket"
 	"golang.org/x/sys/unix"
 )
 
