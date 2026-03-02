@@ -1,4 +1,4 @@
-module github.com/eghostbuster/eghostbuster
+module github.com/fracappa/eghostbuster
 
 go 1.25.5
 
