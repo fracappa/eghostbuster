@@ -23,4 +23,12 @@ struct destroy_event {
     __u64 age_ns;
 };
 
+struct file_info {
+    char  filename[256];
+};
+struct exit_event {
+    __be32 pid;
+    char  filename[256];
+};
+
 #endif /* __TYPES_H */

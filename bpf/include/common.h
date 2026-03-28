@@ -9,6 +9,10 @@
 
 #ifndef DEBUG
 #define DEBUG 1
+#endif  
+
+#ifndef O_CREAT
+#define O_CREAT 00000100
 #endif
 
 #ifndef AF_INET

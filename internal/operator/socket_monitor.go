@@ -49,7 +49,7 @@ func defaultConfig() Config {
 }
 
 // StartMonitor periodically scans close_wait_tracker for stale sockets
-func StartMonitor(ctx context.Context, objs *bpf.EGhostBusterObjects, cfg Config) error {
+func StartStaleSocketMonitor(ctx context.Context, objs *bpf.EGhostBusterObjects, cfg Config) error {
 	log.Printf("CLOSE_WAIT monitor started (interval=%v, timeout=%v)", cfg.ScanInterval, cfg.CloseWaitTimeout)
 
 	ticker := time.NewTicker(cfg.ScanInterval)

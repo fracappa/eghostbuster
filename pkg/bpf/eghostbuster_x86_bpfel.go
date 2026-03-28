@@ -29,6 +29,11 @@ type EGhostBusterConnectionKey struct {
 	_       [3]byte
 }
 
+type EGhostBusterFileInfo struct {
+	_        structs.HostLayout
+	Filename [256]int8
+}
+
 // LoadEGhostBuster returns the embedded CollectionSpec for EGhostBuster.
 func LoadEGhostBuster() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_EGhostBusterBytes)
@@ -71,7 +76,9 @@ type EGhostBusterSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type EGhostBusterProgramSpecs struct {
-	HandleSetState *ebpf.ProgramSpec `ebpf:"handle_set_state"`
+	HandleSetState      *ebpf.ProgramSpec `ebpf:"handle_set_state"`
+	ProcessExitNotifier *ebpf.ProgramSpec `ebpf:"process_exit_notifier"`
+	RegisterOpenat      *ebpf.ProgramSpec `ebpf:"register_openat"`
 }
 
 // EGhostBusterMapSpecs contains maps before they are loaded into the kernel.
@@ -79,6 +86,9 @@ type EGhostBusterProgramSpecs struct {
 // It can be passed ebpf.CollectionSpec.Assign.
 type EGhostBusterMapSpecs struct {
 	CloseWaitTracker *ebpf.MapSpec `ebpf:"close_wait_tracker"`
+	ExitEvents       *ebpf.MapSpec `ebpf:"exit_events"`
+	FileInfoScratch  *ebpf.MapSpec `ebpf:"file_info_scratch"`
+	FileProcessMap   *ebpf.MapSpec `ebpf:"file_process_map"`
 }
 
 // EGhostBusterVariableSpecs contains global variables before they are loaded into the kernel.
@@ -108,11 +118,17 @@ func (o *EGhostBusterObjects) Close() error {
 // It can be passed to LoadEGhostBusterObjects or ebpf.CollectionSpec.LoadAndAssign.
 type EGhostBusterMaps struct {
 	CloseWaitTracker *ebpf.Map `ebpf:"close_wait_tracker"`
+	ExitEvents       *ebpf.Map `ebpf:"exit_events"`
+	FileInfoScratch  *ebpf.Map `ebpf:"file_info_scratch"`
+	FileProcessMap   *ebpf.Map `ebpf:"file_process_map"`
 }
 
 func (m *EGhostBusterMaps) Close() error {
 	return _EGhostBusterClose(
 		m.CloseWaitTracker,
+		m.ExitEvents,
+		m.FileInfoScratch,
+		m.FileProcessMap,
 	)
 }
 
@@ -126,12 +142,16 @@ type EGhostBusterVariables struct {
 //
 // It can be passed to LoadEGhostBusterObjects or ebpf.CollectionSpec.LoadAndAssign.
 type EGhostBusterPrograms struct {
-	HandleSetState *ebpf.Program `ebpf:"handle_set_state"`
+	HandleSetState      *ebpf.Program `ebpf:"handle_set_state"`
+	ProcessExitNotifier *ebpf.Program `ebpf:"process_exit_notifier"`
+	RegisterOpenat      *ebpf.Program `ebpf:"register_openat"`
 }
 
 func (p *EGhostBusterPrograms) Close() error {
 	return _EGhostBusterClose(
 		p.HandleSetState,
+		p.ProcessExitNotifier,
+		p.RegisterOpenat,
 	)
 }
 

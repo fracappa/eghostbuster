@@ -12,6 +12,7 @@ import (
 	"github.com/cilium/ebpf/rlimit"
 	"github.com/fracappa/eghostbuster/internal/operator"
 	"github.com/fracappa/eghostbuster/pkg/bpf"
+	"golang.org/x/sync/errgroup"
 )
 
 /*
@@ -75,24 +76,43 @@ func main() {
 	// defer fexistLink.Close()
 
 	// attach tp_btf/inet_sock_set_state (state changes)
-	tpLink, err := link.AttachTracing(link.TracingOptions{
+	staleSocketTp, err := link.AttachTracing(link.TracingOptions{
 		Program: objs.HandleSetState,
 	})
 	if err != nil {
 		log.Fatalf("failed to attach inet_sock_set_state: %v", err)
 	}
-	defer tpLink.Close()
+	defer staleSocketTp.Close()
+
+	fileLocksTp, err := link.Tracepoint("syscalls", "sys_enter_openat", objs.RegisterOpenat, nil)
+	if err != nil {
+		log.Fatalf("failed to attach sys_enter_openat: %v", err)
+	}
+	defer fileLocksTp.Close()
+
+	processExitTp, err := link.Tracepoint("sched", "sched_process_exit", objs.ProcessExitNotifier, nil)
+	if err != nil {
+		log.Fatalf("failed to attach sched_process_exit: %v", err)
+	}
+	defer processExitTp.Close()
 
 	log.Println("eghostbuster started. Waiting for zombie connections...")
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	// start ring buffer consumer
-	if err := operator.StartMonitor(ctx, &objs, cfg); err != nil {
-		if !errors.Is(err, context.Canceled) {
-			log.Fatalf("monitor error: %v", err)
-		}
+	g, ctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		return operator.StartStaleSocketMonitor(ctx, &objs, cfg)
+	})
+
+	g.Go(func() error {
+		return operator.StartFileLocksMonitor(ctx, &objs)
+	})
+
+	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		log.Fatalf("monitor error: %v", err)
 	}
 
 	log.Println("Shutting down..")
