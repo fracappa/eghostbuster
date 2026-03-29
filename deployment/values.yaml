@@ -3,7 +3,7 @@ replicaCount: 1
 image:
   repository: quay.io/rh-ee-fcappa/eghostbuster
   pullPolicy: IfNotPresent
-  tag: ""  # Overridden by chart version if empty
+  tag: "0.2.0"  # Overridden by chart version if empty
 
 imagePullSecrets: []
 nameOverride: ""
