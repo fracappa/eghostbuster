@@ -79,6 +79,7 @@ type EGhostBusterProgramSpecs struct {
 	HandleSetState      *ebpf.ProgramSpec `ebpf:"handle_set_state"`
 	ProcessExitNotifier *ebpf.ProgramSpec `ebpf:"process_exit_notifier"`
 	RegisterOpenat      *ebpf.ProgramSpec `ebpf:"register_openat"`
+	RegisterOpenat2     *ebpf.ProgramSpec `ebpf:"register_openat2"`
 }
 
 // EGhostBusterMapSpecs contains maps before they are loaded into the kernel.
@@ -145,6 +146,7 @@ type EGhostBusterPrograms struct {
 	HandleSetState      *ebpf.Program `ebpf:"handle_set_state"`
 	ProcessExitNotifier *ebpf.Program `ebpf:"process_exit_notifier"`
 	RegisterOpenat      *ebpf.Program `ebpf:"register_openat"`
+	RegisterOpenat2     *ebpf.Program `ebpf:"register_openat2"`
 }
 
 func (p *EGhostBusterPrograms) Close() error {
@@ -152,6 +154,7 @@ func (p *EGhostBusterPrograms) Close() error {
 		p.HandleSetState,
 		p.ProcessExitNotifier,
 		p.RegisterOpenat,
+		p.RegisterOpenat2,
 	)
 }
 

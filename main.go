@@ -84,11 +84,17 @@ func main() {
 	}
 	defer staleSocketTp.Close()
 
-	fileLocksTp, err := link.Tracepoint("syscalls", "sys_enter_openat", objs.RegisterOpenat, nil)
+	openAtTp, err := link.Tracepoint("syscalls", "sys_enter_openat", objs.RegisterOpenat, nil)
 	if err != nil {
 		log.Fatalf("failed to attach sys_enter_openat: %v", err)
 	}
-	defer fileLocksTp.Close()
+	defer openAtTp.Close()
+
+	openAt2Tp, err := link.Tracepoint("syscalls", "sys_enter_openat2", objs.RegisterOpenat2, nil)
+	if err != nil {
+		log.Fatalf("failed to attach sys_enter_openat2: %v", err)
+	}
+	defer openAt2Tp.Close()
 
 	processExitTp, err := link.Tracepoint("sched", "sched_process_exit", objs.ProcessExitNotifier, nil)
 	if err != nil {

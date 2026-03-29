@@ -3,12 +3,7 @@
 #include "include/types.h"
 #include "include/maps.h"
 
-SEC("tp/syscalls/sys_enter_openat")
-int register_openat(struct trace_event_raw_sys_enter *ctx) {
-    int flags = (int)ctx->args[2];
-
-    if(!(flags & O_CREAT))
-        return 0;
+static __always_inline int track_lock_file(const void *filename_ptr) {
 
     __u32 zero = 0;
     struct file_info *info = bpf_map_lookup_elem(&file_info_scratch, &zero);
@@ -16,8 +11,7 @@ int register_openat(struct trace_event_raw_sys_enter *ctx) {
     if(!info) return 0;
 
     int len = bpf_probe_read_user_str(info->filename,
-         sizeof(info->filename),
-         (const void *)ctx->args[1]);
+         sizeof(info->filename), filename_ptr);
 
     if(len <= 1) return 0;
 
@@ -48,10 +42,32 @@ int register_openat(struct trace_event_raw_sys_enter *ctx) {
 
     __u32 pid = bpf_get_current_pid_tgid() >> 32;
 
-    // // map file name and the PID of the creator
-    bpf_map_update_elem(&file_process_map, &pid, info, BPF_ANY);
+    bpf_map_update_elem(&file_process_map, &pid, info, BPF_NOEXIST);
 
     return 0;
+}
+
+SEC("tp/syscalls/sys_enter_openat")
+int register_openat(struct trace_event_raw_sys_enter *ctx) {
+    int flags = (int)ctx->args[2];
+
+    if(!(flags & O_CREAT))
+        return 0;
+
+    return track_lock_file((const void *)ctx->args[1]);
+}
+
+
+SEC("tp/syscalls/sys_enter_openat2")
+int register_openat2(struct trace_event_raw_sys_enter *ctx) {
+    // openat2 args[2] is a pointer to a struct open_how { u64 flags; u64 mode; u64 resolve; }
+    __u64 flags = 0;
+    bpf_probe_read_user(&flags, sizeof(flags), (const void *)ctx->args[2]);
+
+    if(!(flags & O_CREAT))
+        return 0;
+        
+    return track_lock_file((const void *)ctx->args[1]);
 }
 
 
@@ -108,6 +124,8 @@ int process_exit_notifier(struct trace_event_raw_sched_process_template *ctx) {
 
     event->pid = pid;
     __builtin_memcpy(event->filename, info->filename, sizeof(event->filename));
+
+    bpf_map_delete_elem(&file_process_map, &pid);
 
     bpf_ringbuf_submit(event, 0);
 
