@@ -1,12 +1,12 @@
 package operator
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/cilium/ebpf/ringbuf"
 	"github.com/fracappa/eghostbuster/pkg/bpf"
@@ -44,23 +44,20 @@ func StartFileLocksMonitor(ctx context.Context, objs *bpf.EGhostBusterObjects) e
 
 		exitEvent := ExitEvent{
 			PID:      binary.LittleEndian.Uint32(record.RawSample[0:4]),
-			Filename: strings.TrimRight(string(record.RawSample[4:]), "\x00"),
+			Filename: string(record.RawSample[4 : 4+bytes.IndexByte(record.RawSample[4:], 0)]),
 		}
 
 		// Parse the connection_info struct from BPF
 		log.Printf("Process exited: PID=%d, File=%s", exitEvent.PID, exitEvent.Filename)
 
 		if !file.Exist(exitEvent.Filename) {
-			log.Printf("file %s not found", exitEvent.Filename)
+			continue
+			// log.Printf("file %s not found", exitEvent.Filename)
 		} else {
 			if err := file.Remove(exitEvent.Filename); err != nil {
 				log.Printf("error while removing file: %s (err: %v)", exitEvent.Filename, err)
 			}
 			log.Printf("lock file: %s successfully deleted", exitEvent.Filename)
-
-			if err := objs.FileProcessMap.Delete(exitEvent.PID); err != nil {
-				log.Printf("failed to delete map entry: %v", err)
-			}
 		}
 	}
 }
