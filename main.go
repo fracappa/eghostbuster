@@ -6,8 +6,11 @@ import (
 	"flag"
 	"log"
 	"os/signal"
+	"strings"
 	"syscall"
+	"unsafe"
 
+	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
 	"github.com/fracappa/eghostbuster/internal/operator"
@@ -28,8 +31,9 @@ Envs:
 	sudo CLOSE_WAIT_TIMEOUT=600s SCAN_INTERVAL=300s ./eghostbuster
 */
 var (
-	timeout  = flag.Duration("timeout", 0, "CLOSE_WAIT timeout before killing socket (e.g. 60s, 5m)")
-	interval = flag.Duration("interval", 0, "How often to scan for stale CLOSE_WAIT sockets (e.g. 30s, 1m)")
+	timeout   = flag.Duration("timeout", 0, "CLOSE_WAIT timeout before killing socket (e.g. 60s, 5m)")
+	interval  = flag.Duration("interval", 0, "How often to scan for stale CLOSE_WAIT sockets (e.g. 30s, 1m)")
+	fileLocks = flag.String("fileLocks", "lock,lck", "file locks extentions")
 )
 
 func main() {
@@ -57,23 +61,18 @@ func main() {
 	}
 	defer objs.Close()
 
-	// // attach fentry/tcp_v4_connect (client connections)
-	// fentryLink, err := link.AttachTracing(link.TracingOptions{
-	// 	Program: objs.TcpV4Connect,
-	// })
-	// if err != nil {
-	// 	log.Fatalf("failed to attach fentry/tcp_v4_connect: %v", err)
-	// }
-	// defer fentryLink.Close()
-
-	// // attach fexit/inet_csk_accept (server connections)
-	// fexistLink, err := link.AttachTracing(link.TracingOptions{
-	// 	Program: objs.InetCskAcceptExit,
-	// })
-	// if err != nil {
-	// 	log.Fatalf("failed to attach fexit/inet_csk_accept: %v", err)
-	// }
-	// defer fexistLink.Close()
+	// save custom file lock extensions in BPF map
+	exts := strings.Split(*fileLocks, ",")
+	for i, ext := range exts {
+		key := uint32(i)
+		val := bpf.EGhostBusterFileExtension{}
+		e := strings.TrimSpace(ext)
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&val.Name[0])), len(val.Name)), e)
+		val.Len = uint32(len(e))
+		if err := objs.FileExtensions.Update(key, val, ebpf.UpdateAny); err != nil {
+			log.Fatalf("failed to load extentions in file_extensions BPF map: %v", err)
+		}
+	}
 
 	// attach tp_btf/inet_sock_set_state (state changes)
 	staleSocketTp, err := link.AttachTracing(link.TracingOptions{

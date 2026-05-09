@@ -29,9 +29,16 @@ type EGhostBusterConnectionKey struct {
 	_       [3]byte
 }
 
+type EGhostBusterFileExtension struct {
+	_    structs.HostLayout
+	Name [16]int8
+	Len  uint32
+}
+
 type EGhostBusterFileInfo struct {
 	_        structs.HostLayout
 	Filename [256]int8
+	Slen     uint32
 }
 
 // LoadEGhostBuster returns the embedded CollectionSpec for EGhostBuster.
@@ -88,6 +95,7 @@ type EGhostBusterProgramSpecs struct {
 type EGhostBusterMapSpecs struct {
 	CloseWaitTracker *ebpf.MapSpec `ebpf:"close_wait_tracker"`
 	ExitEvents       *ebpf.MapSpec `ebpf:"exit_events"`
+	FileExtensions   *ebpf.MapSpec `ebpf:"file_extensions"`
 	FileInfoScratch  *ebpf.MapSpec `ebpf:"file_info_scratch"`
 	FileProcessMap   *ebpf.MapSpec `ebpf:"file_process_map"`
 }
@@ -120,6 +128,7 @@ func (o *EGhostBusterObjects) Close() error {
 type EGhostBusterMaps struct {
 	CloseWaitTracker *ebpf.Map `ebpf:"close_wait_tracker"`
 	ExitEvents       *ebpf.Map `ebpf:"exit_events"`
+	FileExtensions   *ebpf.Map `ebpf:"file_extensions"`
 	FileInfoScratch  *ebpf.Map `ebpf:"file_info_scratch"`
 	FileProcessMap   *ebpf.Map `ebpf:"file_process_map"`
 }
@@ -128,6 +137,7 @@ func (m *EGhostBusterMaps) Close() error {
 	return _EGhostBusterClose(
 		m.CloseWaitTracker,
 		m.ExitEvents,
+		m.FileExtensions,
 		m.FileInfoScratch,
 		m.FileProcessMap,
 	)
