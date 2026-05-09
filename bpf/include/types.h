@@ -25,10 +25,16 @@ struct destroy_event {
 
 struct file_info {
     char  filename[256];
+    unsigned int slen;
 };
 struct exit_event {
     __be32 pid;
     char  filename[256];
+};
+
+struct file_extension {
+    char name[16];
+    unsigned int len;
 };
 
 #endif /* __TYPES_H */

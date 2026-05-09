@@ -3,46 +3,49 @@
 #include "include/types.h"
 #include "include/maps.h"
 
+static long extension_callback(struct bpf_map *map, const void *key, void *value, void *ctx){
+    struct file_extension *fe = (struct file_extension *)value;
+   __u32 zero = 0;
+    struct file_info *info = bpf_map_lookup_elem(&file_info_scratch, &zero);
+    if (!info) 
+        return 0;
+
+    if(info->slen < fe->len || fe->len ==0)
+        return 0;
+
+    unsigned char match_found = 1;
+    for(int i=0; i < fe->len && i < 15 && match_found; i++) {
+        match_found = (info->filename[(info->slen - fe->len + i) & 0xFF] == fe->name[i]);
+    }
+
+    if(match_found) {
+        __u32 pid = bpf_get_current_pid_tgid() >> 32;
+        bpf_map_update_elem(&file_process_map, &pid, info, BPF_NOEXIST);
+    }
+
+    return match_found;
+}
+
+
 static __always_inline int track_lock_file(const void *filename_ptr) {
 
     __u32 zero = 0;
     struct file_info *info = bpf_map_lookup_elem(&file_info_scratch, &zero);
 
-    if(!info) return 0;
+    if(!info) 
+        return 0;
 
     int len = bpf_probe_read_user_str(info->filename,
          sizeof(info->filename), filename_ptr);
 
-    if(len <= 1) return 0;
+    if(len <= 1) 
+        return 0;
 
     unsigned int slen = (unsigned int)(len - 1);
     if (slen > 255) slen = 255;
+    info->slen = slen;
 
-    // Check for ".lock" suffix
-    int is_lock = 0;
-    if (slen >= 5) {
-        is_lock = (info->filename[(slen - 5) & 0xFF] == '.' &&
-                   info->filename[(slen - 4) & 0xFF] == 'l' &&
-                   info->filename[(slen - 3) & 0xFF] == 'o' &&
-                   info->filename[(slen - 2) & 0xFF] == 'c' &&
-                   info->filename[(slen - 1) & 0xFF] == 'k');
-    }
-
-    // Check for ".lck" suffix
-    int is_lck = 0;
-    if (slen >= 4) {
-        is_lck = (info->filename[(slen - 4) & 0xFF] == '.' &&
-                  info->filename[(slen - 3) & 0xFF] == 'l' &&
-                  info->filename[(slen - 2) & 0xFF] == 'c' &&
-                  info->filename[(slen - 1) & 0xFF] == 'k');
-    }
-
-    if (!is_lock && !is_lck)
-        return 0;
-
-    __u32 pid = bpf_get_current_pid_tgid() >> 32;
-
-    bpf_map_update_elem(&file_process_map, &pid, info, BPF_NOEXIST);
+    bpf_for_each_map_elem(&file_extensions, extension_callback, NULL, 0);
 
     return 0;
 }
@@ -53,7 +56,7 @@ int register_openat(struct trace_event_raw_sys_enter *ctx) {
 
     if(!(flags & O_CREAT))
         return 0;
-
+    
     return track_lock_file((const void *)ctx->args[1]);
 }
 
