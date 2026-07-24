@@ -35,11 +35,7 @@ eghostbuster uses eBPF to:
 ## Current Features
 
 - **TCP CLOSE_WAIT cleanup**: detects TCP sockets stuck in `CLOSE_WAIT` state and destroys them after a configurable timeout
-
-## Planned Features
-
-- File lock cleanup
-- Shared memory / IPC cleanup
+- **File lock cleanup**: cleans up file-locks which can prevent new processes' runs, when the owner process terminates without deleting them
 
 ## Requirements
 
