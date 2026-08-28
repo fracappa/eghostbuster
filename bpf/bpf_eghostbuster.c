@@ -113,6 +113,36 @@ int BPF_PROG(handle_set_state,const struct sock *sk,
 }
 
 
+SEC("fentry/nf_conntrack_destroy")
+int BPF_PROG(handle_conntrack_destroy, struct nf_conn___local *ct) {
+    __u16 family = BPF_CORE_READ(ct, tuplehash[0].tuple.src.l3num);
+    if (family != AF_INET)
+        return 0;
+
+    struct conntrack_event event = {
+        .last_seen_at = bpf_ktime_get_ns(),
+    };
+
+    // Reply source IP is the actual backend/pod IP in DNAT scenarios
+    __be32 pod_ip = BPF_CORE_READ(ct, tuplehash[1].tuple.src.u3.ip);
+    bpf_map_update_elem(&conntrack_destroy_tracker, &pod_ip, &event, BPF_ANY);
+
+    return 0;
+}
+
+SEC("fentry/__nf_conntrack_hash_insert")
+int BPF_PROG(handle_conntrack_new, struct nf_conn___local *ct) {
+    __u16 family = BPF_CORE_READ(ct, tuplehash[0].tuple.src.l3num);
+    if (family != AF_INET)
+        return 0;
+
+    __be32 pod_ip = BPF_CORE_READ(ct, tuplehash[1].tuple.src.u3.ip);
+    bpf_map_delete_elem(&conntrack_destroy_tracker, &pod_ip);
+
+    return 0;
+}
+
+
 SEC("tp/sched/sched_process_exit")
 int process_exit_notifier(struct trace_event_raw_sched_process_template *ctx) {
     __be32 pid = bpf_get_current_pid_tgid() >> 32;
