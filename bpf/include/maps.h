@@ -36,4 +36,11 @@ struct {
     __type(value, struct file_info);
 } file_info_scratch SEC(".maps");
 
+struct {
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __uint(max_entries, 10240);
+    __type(key, __be32);
+    __type(value, struct conntrack_event);
+} conntrack_destroy_tracker SEC(".maps");
+
 #endif /* __MAPS_H */
