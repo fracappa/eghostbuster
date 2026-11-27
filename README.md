@@ -10,10 +10,10 @@
     </a>
 </div>
 
-An eBPF-based tool for detecting and cleaning up stale kernel resources
+An eBPF-based tool for detecting and cleaning up stale system resources
 
 ## Problem                                                                                                                                                  
-Kernel resources can become "stuck" or stale due to various conditions:
+System resources can become "stuck" or stale due to various conditions:
 
 - Processes exiting unexpectedly without proper cleanup
 - Applications that leak resources (don't close sockets, release locks, etc.)
